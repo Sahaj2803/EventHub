@@ -1,0 +1,11 @@
+# Event Web MCP Tool Environment Variables
+
+# TestSprite API Configuration
+TESTSPRITE_API_KEY=sk-user-ctVqvDLZq6QBG_SdbJN9OlO4a6lfz7jMhMpJSaSwZ32Ug7dxMDotQbwZXjIJ49OVZxk2uxFUJ8xpJIdgGSi-Wy1kEUZr5Wu19re_GejGcmy4Kex-nODc_QCwZDiZxcwnoXs
+
+# Event Web API Configuration
+EVENT_WEB_API_BASE=http://localhost:5005/api
+EVENT_WEB_AUTH_TOKEN=your-jwt-token-here
+
+# Optional: Node Environment
+NODE_ENV=production

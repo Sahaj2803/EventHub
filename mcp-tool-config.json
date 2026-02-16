@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "event-web-tool": {
+      "command": "node",
+      "args": ["mcp-tool.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "event-web-mcp-tool",
+  "version": "1.0.0",
+  "description": "MCP Tool for Event Web Application with TestSprite Integration",
+  "main": "mcp-tool.js",
+  "type": "module",
+  "scripts": {
+    "start": "node mcp-tool.js",
+    "dev": "nodemon mcp-tool.js"
+  },
+  "keywords": [
+    "mcp",
+    "event-management",
+    "testsprite",
+    "api-tool"
+  ],
+  "author": "Event Web Team",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

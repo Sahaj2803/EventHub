@@ -50,6 +50,12 @@ class ApiService {
     
     register: (data: RegisterData): Promise<AxiosResponse<AuthResponse>> =>
       this.api.post('/auth/register', data),
+
+    forgotPassword: (data: { email: string }): Promise<AxiosResponse<{ message: string; resetLink?: string }>> =>
+      this.api.post('/auth/forgot-password', data),
+
+    resetPassword: (token: string, data: { password: string }): Promise<AxiosResponse<{ message: string }>> =>
+      this.api.post(`/auth/reset-password/${token}`, data),
     
     getCurrentUser: (): Promise<AxiosResponse<{ user: any }>> =>
       this.api.get('/auth/me'),
@@ -137,6 +143,9 @@ class ApiService {
   users = {
     getAll: (filters?: any): Promise<AxiosResponse<{ users: any[]; pagination: any }>> =>
       this.api.get('/users', { params: filters }),
+
+    create: (data: { name: string; email: string; password: string; role: string }): Promise<AxiosResponse<{ user: any }>> =>
+      this.api.post('/users', data),
     
     getById: (id: string): Promise<AxiosResponse<{ user: any }>> =>
       this.api.get(`/users/${id}`),
@@ -155,6 +164,9 @@ class ApiService {
     
     getStats: (): Promise<AxiosResponse<any>> =>
       this.api.get('/users/stats/overview'),
+
+    resetStats: (): Promise<AxiosResponse<{ message: string; stats: any }>> =>
+      this.api.post('/users/stats/reset'),
     
     getRevenue: (id: string): Promise<AxiosResponse<any>> =>
       this.api.get(`/users/${id}/revenue`),
@@ -186,7 +198,7 @@ class ApiService {
       this.api.get('/favorites', { params: filters }),
     
     add: (eventId: string): Promise<AxiosResponse<{ message: string; favorite: any }>> =>
-      this.api.post('/favorites', { eventId }),
+      this.api.post(`/favorites/${eventId}`),
     
     
     remove: (eventId: string): Promise<AxiosResponse<{ message: string }>> =>

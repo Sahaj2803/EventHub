@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -43,9 +43,15 @@ import { useThemeMode } from '../../contexts/ThemeModeContext';
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  backgroundColor:
+    theme.palette.mode === 'dark'
+      ? alpha(theme.palette.common.white, 0.12)
+      : alpha(theme.palette.common.black, 0.05),
   '&:hover': {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? alpha(theme.palette.common.white, 0.18)
+        : alpha(theme.palette.common.black, 0.08),
   },
   marginRight: theme.spacing(2),
   marginLeft: 0,
@@ -68,6 +74,10 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
   color: 'inherit',
+  '& .MuiInputBase-input::placeholder': {
+    color: theme.palette.text.secondary,
+    opacity: 1,
+  },
   '& .MuiInputBase-input': {
     padding: theme.spacing(1, 1, 1, 0),
     paddingLeft: `calc(1em + ${theme.spacing(4)})`,
@@ -82,6 +92,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { mode, toggleMode } = useThemeMode();
@@ -89,6 +100,11 @@ const Navbar: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setAnchorEl(null);
+  }, [location.pathname]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -100,8 +116,9 @@ const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     logout();
+    setMobileMenuOpen(false);
     handleMenuClose();
-    navigate('/');
+    navigate('/login', { replace: true });
   };
 
   const handleSearch = (event: React.FormEvent) => {
@@ -135,8 +152,50 @@ const Navbar: React.FC = () => {
       anchor="left"
       open={mobileMenuOpen}
       onClose={() => setMobileMenuOpen(false)}
+      PaperProps={{
+        sx: {
+          width: { xs: '88vw', sm: 320 },
+          maxWidth: 360,
+        },
+      }}
     >
-      <Box sx={{ width: 250, pt: 2 }}>
+      <Box sx={{ px: 2, py: 2.5 }}>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 800,
+            mb: 2,
+            background:
+              mode === 'dark'
+                ? 'linear-gradient(90deg, #ffffff, #c7b9ff, #ffb6d9)'
+                : 'linear-gradient(90deg, #312e81, #2563eb, #db2777)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+          }}
+        >
+          EventHub
+        </Typography>
+        <Search sx={{ m: 0, mb: 2, width: '100%' }}>
+          <SearchIconWrapper>
+            <SearchIcon />
+          </SearchIconWrapper>
+          <form onSubmit={handleSearch}>
+            <StyledInputBase
+              placeholder="Search events..."
+              inputProps={{ 'aria-label': 'search' }}
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              sx={{ width: '100%' }}
+            />
+          </form>
+        </Search>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            Theme
+          </Typography>
+          <Switch checked={mode === 'dark'} onChange={toggleMode} color="default" />
+        </Box>
         <List>
           <ListItem component="button" onClick={() => handleNavigation('/events')}>
             <ListItemIcon>
@@ -166,6 +225,22 @@ const Navbar: React.FC = () => {
               </ListItem>
             </>
           )}
+          {!isAuthenticated && (
+            <>
+              <ListItem component="button" onClick={() => handleNavigation('/login')}>
+                <ListItemIcon>
+                  <AccountCircle />
+                </ListItemIcon>
+                <ListItemText primary="Login" />
+              </ListItem>
+              <ListItem component="button" onClick={() => handleNavigation('/register')}>
+                <ListItemIcon>
+                  <AccountCircle />
+                </ListItemIcon>
+                <ListItemText primary="Sign Up" />
+              </ListItem>
+            </>
+          )}
         </List>
       </Box>
     </Drawer>
@@ -174,7 +249,7 @@ const Navbar: React.FC = () => {
   return (
     <>
       <AppBar position="sticky" elevation={0}>
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: 72, md: 80 }, gap: 1 }}>
           {isMobile && (
             <IconButton
               edge="start"
@@ -191,11 +266,14 @@ const Navbar: React.FC = () => {
             variant="h6"
             component="div"
             sx={{ 
-              flexGrow: isMobile ? 0 : 1, 
+              flexGrow: 1, 
               cursor: 'pointer',
               fontWeight: 'bold',
-              mr: isMobile ? 2 : 0,
-              background: 'linear-gradient(90deg, #ffffff, #c7b9ff, #ffb6d9)',
+              mr: isMobile ? 1 : 0,
+              background:
+                mode === 'dark'
+                  ? 'linear-gradient(90deg, #ffffff, #c7b9ff, #ffb6d9)'
+                  : 'linear-gradient(90deg, #312e81, #2563eb, #db2777)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               color: 'transparent'
@@ -205,7 +283,31 @@ const Navbar: React.FC = () => {
             EventHub
           </Typography>
 
-          {!isMobile && (
+          {isMobile ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+                <Switch checked={mode === 'dark'} onChange={toggleMode} color="default" size="small" />
+              </Tooltip>
+              {isAuthenticated ? (
+                <IconButton
+                  size="large"
+                  aria-label="account of current user"
+                  aria-controls="menu-appbar"
+                  aria-haspopup="true"
+                  onClick={handleMenuOpen}
+                  color="inherit"
+                >
+                  <Avatar src={user?.avatar} sx={{ width: 32, height: 32 }}>
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+              ) : (
+                <Button color="inherit" onClick={() => navigate('/login')} sx={{ minWidth: 0, px: 1.5 }}>
+                  Login
+                </Button>
+              )}
+            </Box>
+          ) : (
             <>
               <Button
                 color="inherit"
@@ -283,6 +385,11 @@ const Navbar: React.FC = () => {
                     }}
                     open={Boolean(anchorEl)}
                     onClose={handleMenuClose}
+                    PaperProps={{
+                      sx: {
+                        minWidth: 220,
+                      },
+                    }}
                   >
                     {filteredMenuItems.map((item) => (
                       <MenuItem key={item.path} onClick={() => handleNavigation(item.path)}>

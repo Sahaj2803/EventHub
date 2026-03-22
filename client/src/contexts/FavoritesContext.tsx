@@ -33,6 +33,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [favorites, setFavorites] = useState<Record<string, FavoriteEventMeta>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const userId = user?._id || user?.id;
 
   // ✅ useCallback se stable reference (no infinite render)
   const loadFavorites = useCallback(async () => {
@@ -66,12 +67,12 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // ✅ runs only when user/auth changes
   useEffect(() => {
-    if (isAuthenticated && user?._id) {
+    if (isAuthenticated && userId) {
       loadFavorites();
     } else {
       setFavorites({});
     }
-  }, [isAuthenticated, user?._id, loadFavorites]);
+  }, [isAuthenticated, userId, loadFavorites]);
 
   const isFavorite = useCallback(
     (eventId: string) => Boolean(favorites[eventId]),

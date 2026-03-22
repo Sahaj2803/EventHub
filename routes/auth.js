@@ -1,8 +1,10 @@
 const express = require('express');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
@@ -110,6 +112,86 @@ router.post('/login', [
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
+  }
+});
+
+// @route   POST /api/auth/forgot-password
+// @desc    Send password reset link
+// @access  Public
+router.post('/forgot-password', [
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.json({
+        message: 'If an account exists with this email, a reset link has been sent.'
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000;
+    await user.save();
+
+    const clientBaseUrl = req.get('origin') || process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
+    const resetLink = `${clientBaseUrl}/reset-password/${resetToken}`;
+
+    const emailResult = await emailService.sendPasswordResetEmail(user, resetLink);
+
+    res.json({
+      message: emailResult.success
+        ? 'Password reset link sent to your email.'
+        : 'Email service configured nahi hai. Neeche diya gaya reset link use karo.',
+      resetLink: emailResult.success ? undefined : resetLink
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error during forgot password request' });
+  }
+});
+
+// @route   POST /api/auth/reset-password/:token
+// @desc    Reset password using token
+// @access  Public
+router.post('/reset-password/:token', [
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Reset link invalid ya expire ho chuka hai.' });
+    }
+
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successful. Ab aap login kar sakte ho.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error during password reset' });
   }
 });
 

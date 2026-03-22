@@ -24,8 +24,9 @@ import {
   LinearProgress,
   Breadcrumbs,
   Link,
-  Divider,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   Add,
   MoreVert,
@@ -39,26 +40,26 @@ import {
   NavigateNext,
   Event as EventIcon,
   BookOnline,
-  TrendingUp,
   AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { eventsAPI, bookingsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { useWallet } from '../contexts/WalletContext';
 import { Event } from '../types/event';
 import WalletSummary from '../components/Wallet/WalletSummary';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
-  const { wallet, loading: walletLoading } = useWallet();
   const queryClient = useQueryClient();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [emailTestLoading, setEmailTestLoading] = useState(false);
   const [emailTestMessage, setEmailTestMessage] = useState<string | null>(null);
+  const [emailTestSeverity, setEmailTestSeverity] = useState<'success' | 'error'>('success');
 
   // Get user ID with backward compatibility
   const userId = user?._id || user?.id;
@@ -133,6 +134,7 @@ const Dashboard: React.FC = () => {
   const testEmail = async () => {
     if (!user?.email) {
       setEmailTestMessage('No email address found for user');
+      setEmailTestSeverity('error');
       return;
     }
 
@@ -150,13 +152,16 @@ const Dashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        setEmailTestMessage(`✅ Test email sent successfully! Check ${user.email}`);
+        setEmailTestSeverity('success');
+        setEmailTestMessage(`Test email sent successfully. Check ${user.email}.`);
       } else {
         const errorData = await response.json();
-        setEmailTestMessage(`❌ Failed to send test email: ${errorData.message || 'Unknown error'}`);
+        setEmailTestSeverity('error');
+        setEmailTestMessage(`Failed to send test email: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error: any) {
-      setEmailTestMessage(`❌ Failed to send test email: ${error.message}`);
+      setEmailTestSeverity('error');
+      setEmailTestMessage(`Failed to send test email: ${error.message}`);
     } finally {
       setEmailTestLoading(false);
     }
@@ -290,21 +295,38 @@ const Dashboard: React.FC = () => {
         </Breadcrumbs>
 
         {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: { xs: 'stretch', md: 'center' },
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 2,
+            mb: 4,
+          }}
+        >
           <Box>
-            <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+            <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold', fontSize: { xs: '2rem', md: '3rem' } }}>
               Dashboard
             </Typography>
             <Typography variant="h6" color="text.secondary">
               Welcome back, {user?.name || 'Organizer'}!
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+              width: { xs: '100%', md: 'auto' },
+            }}
+          >
             <Button
               variant="outlined"
               startIcon={<Email />}
               onClick={testEmail}
               disabled={emailTestLoading}
+              fullWidth={isMobile}
             >
               {emailTestLoading ? 'Testing...' : 'Test Email'}
             </Button>
@@ -313,6 +335,7 @@ const Dashboard: React.FC = () => {
               startIcon={<Add />}
               onClick={() => navigate('/events/create')}
               size="large"
+              fullWidth={isMobile}
             >
               Create Event
             </Button>
@@ -322,7 +345,7 @@ const Dashboard: React.FC = () => {
         {/* Email Test Message */}
         {emailTestMessage && (
           <Alert 
-            severity={emailTestMessage.includes('✅') ? 'success' : 'error'} 
+            severity={emailTestSeverity}
             sx={{ mb: 3 }}
             onClose={() => setEmailTestMessage(null)}
           >
@@ -469,13 +492,23 @@ const Dashboard: React.FC = () => {
           {/* My Events */}
           <Grid item xs={12} lg={8}>
             <Paper elevation={2} sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                   My Events
                 </Typography>
                 <Button
                   variant="outlined"
                   onClick={() => navigate('/events')}
+                  fullWidth={isMobile}
                 >
                   View All
                 </Button>
@@ -579,10 +612,19 @@ const Dashboard: React.FC = () => {
                           )}
                         </CardContent>
                         <Box sx={{ p: 2, pt: 0 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: { xs: 'stretch', sm: 'center' },
+                              flexDirection: { xs: 'column', sm: 'row' },
+                              gap: 1,
+                            }}
+                          >
                             <Button
                               size="small"
                               variant="contained"
+                              fullWidth={isMobile}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/events/${event._id}`);
@@ -612,13 +654,23 @@ const Dashboard: React.FC = () => {
           {/* Recent Bookings */}
           <Grid item xs={12} lg={4}>
             <Paper elevation={2} sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'stretch', sm: 'center' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
                 <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
                   Recent Bookings
                 </Typography>
                 <Button
                   variant="outlined"
                   onClick={() => navigate('/bookings')}
+                  fullWidth={isMobile}
                 >
                   View All
                 </Button>
@@ -635,8 +687,31 @@ const Dashboard: React.FC = () => {
                     No bookings yet
                   </Typography>
                 </Box>
+              ) : isMobile ? (
+                <Box sx={{ display: 'grid', gap: 2 }}>
+                  {recentBookings.map((booking: any) => (
+                    <Card key={booking._id} variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                          {booking.event?.title || 'Unknown Event'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                          {formatDate(booking.event?.dateTime?.start || '')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          {booking.attendeeInfo?.name || 'Unknown'}
+                        </Typography>
+                        <Chip
+                          label={booking.status}
+                          size="small"
+                          color={booking.status === 'confirmed' ? 'success' : 'warning'}
+                        />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
               ) : (
-                <TableContainer>
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>

@@ -11,6 +11,7 @@ import {
   Alert,
   CircularProgress,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -30,6 +31,8 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   MoreVert,
   Cancel,
@@ -39,7 +42,6 @@ import {
   CalendarToday,
   LocationOn,
   AttachMoney,
-  Person,
 } from '@mui/icons-material';
 import jsPDF from 'jspdf';
 import { useNavigate } from 'react-router-dom';
@@ -73,6 +75,8 @@ function TabPanel(props: TabPanelProps) {
 
 const Bookings: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [tabValue, setTabValue] = useState(0);
@@ -307,13 +311,13 @@ const Bookings: React.FC = () => {
         {/* Header */}
         <Box sx={{
           mb: 5,
-          p: 4,
+          p: { xs: 2.5, md: 4 },
           borderRadius: 4,
           backdropFilter: 'blur(10px)',
           background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05))',
           boxShadow: '0 20px 40px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.3)'
         }}>
-          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 800, color: 'white' }}>
+          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 800, color: 'white', fontSize: { xs: '2rem', md: '3rem' } }}>
             My Bookings
           </Typography>
           <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.85)' }}>
@@ -332,7 +336,8 @@ const Bookings: React.FC = () => {
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
-            variant="fullWidth"
+            variant={isMobile ? 'scrollable' : 'fullWidth'}
+            scrollButtons="auto"
             TabIndicatorProps={{ style: { height: 4, borderRadius: 4, background: 'linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6)' } }}
             textColor="inherit"
             sx={{
@@ -476,7 +481,34 @@ const Bookings: React.FC = () => {
               </Typography>
             </Box>
           ) : (
-            <TableContainer component={Paper}>
+            isMobile ? (
+              <Grid container spacing={2.5}>
+                {pastBookings.map((booking: Booking) => (
+                  <Grid item xs={12} key={booking._id}>
+                    <Card sx={{ borderRadius: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{booking.event.title}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          #{booking.bookingReference}
+                        </Typography>
+                        <Stack spacing={1}>
+                          <Typography variant="body2">{formatDate(booking.event.dateTime.start)} at {formatTime(booking.event.dateTime.start)}</Typography>
+                          <Typography variant="body2">{booking.event.venue.name}, {booking.event.venue.address.city}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>${booking.totalAmount}</Typography>
+                        </Stack>
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Chip label={booking.status} color={getStatusColor(booking.status) as any} size="small" />
+                          <IconButton size="small" onClick={(e) => handleMenuOpen(e, booking)}>
+                            <MoreVert />
+                          </IconButton>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -542,6 +574,7 @@ const Bookings: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           )}
         </TabPanel>
 
@@ -558,7 +591,31 @@ const Bookings: React.FC = () => {
               </Typography>
             </Box>
           ) : (
-            <TableContainer component={Paper}>
+            isMobile ? (
+              <Grid container spacing={2.5}>
+                {cancelledBookings.map((booking: Booking) => (
+                  <Grid item xs={12} key={booking._id}>
+                    <Card sx={{ borderRadius: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>{booking.event.title}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          #{booking.bookingReference}
+                        </Typography>
+                        <Stack spacing={1}>
+                          <Typography variant="body2">{formatDate(booking.event.dateTime.start)}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>${booking.totalAmount}</Typography>
+                          <Typography variant="body2" color="text.secondary">{booking.notes || 'No reason provided'}</Typography>
+                        </Stack>
+                        <Box sx={{ mt: 2 }}>
+                          <Chip label={booking.status} color={getStatusColor(booking.status) as any} size="small" />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>
@@ -609,6 +666,7 @@ const Bookings: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           )}
         </TabPanel>
 

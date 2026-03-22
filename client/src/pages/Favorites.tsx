@@ -9,16 +9,20 @@ import {
   Button,
   Grid,
   IconButton,
+  Paper,
   Breadcrumbs,
   Link,
   CircularProgress,
   Alert,
 } from '@mui/material';
 import { Delete, NavigateNext } from '@mui/icons-material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useNavigate } from 'react-router-dom';
 
 const Favorites: React.FC = () => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { favorites, removeFavorite, clearFavorites, loading, error } = useFavorites();
   const navigate = useNavigate();
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -44,7 +48,15 @@ const Favorites: React.FC = () => {
   };
 
   return (
-    <Box sx={{ py: 6 }}>
+    <Box
+      sx={{
+        py: { xs: 4, md: 6 },
+        minHeight: '100vh',
+        background: isDark
+          ? 'linear-gradient(135deg, #020617 0%, #111827 40%, #312e81 100%)'
+          : 'linear-gradient(135deg, #eef6ff 0%, #eef2ff 42%, #fae8ff 100%)',
+      }}
+    >
       <Container maxWidth="lg">
         <Breadcrumbs separator={<NavigateNext fontSize="small" />} sx={{ mb: 3 }}>
           <Link
@@ -57,8 +69,25 @@ const Favorites: React.FC = () => {
           <Typography color="text.primary">Favorites</Typography>
         </Breadcrumbs>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>Saved Events</Typography>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2.25, md: 3 },
+            mb: 3,
+            borderRadius: 4,
+            border: `1px solid ${isDark ? alpha('#e2e8f0', 0.08) : alpha('#0f172a', 0.08)}`,
+            background: isDark
+              ? `linear-gradient(180deg, ${alpha('#0f172a', 0.84)} 0%, ${alpha('#111827', 0.78)} 100%)`
+              : `linear-gradient(180deg, ${alpha('#ffffff', 0.9)} 0%, ${alpha('#f8fbff', 0.96)} 100%)`,
+          }}
+        >
+        <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: isDark ? '#f8fafc' : '#0f172a' }}>Saved Events</Typography>
+            <Typography variant="body2" sx={{ color: isDark ? alpha('#cbd5e1', 0.74) : '#64748b' }}>
+              Keep track of events you want to revisit later.
+            </Typography>
+          </Box>
           {items.length > 0 && (
             <Button 
               color="error" 
@@ -70,6 +99,7 @@ const Favorites: React.FC = () => {
             </Button>
           )}
         </Box>
+        </Paper>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -93,7 +123,7 @@ const Favorites: React.FC = () => {
           <Grid container spacing={3}>
             {items.map((ev) => (
               <Grid item xs={12} sm={6} md={4} key={ev._id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 4, overflow: 'hidden' }}>
                   <CardMedia component="img" height="180" image={ev.image || '/placeholder-event.jpg'} alt={ev.title} />
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -102,8 +132,10 @@ const Favorites: React.FC = () => {
                     <Typography variant="h6" sx={{ fontWeight: 800 }} gutterBottom>
                       {ev.title}
                     </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                      <Button variant="contained" onClick={() => navigate(`/events/${ev._id}`)}>View</Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                      <Button variant="contained" onClick={() => navigate(`/events/${ev._id}`)} sx={{ borderRadius: 999 }}>
+                        View
+                      </Button>
                       <IconButton 
                         color="error" 
                         onClick={() => handleRemoveFavorite(ev._id)}

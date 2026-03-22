@@ -27,12 +27,12 @@ import {
   Link,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
+import { alpha, useTheme } from '@mui/material/styles';
 import {
   Search as SearchIcon,
   LocationOn,
   CalendarToday,
   People,
-  FilterList,
   ViewList,
   ViewModule,
   NavigateNext,
@@ -42,9 +42,12 @@ import { useQuery } from '@tanstack/react-query';
 import { eventsAPI, categoriesAPI } from '../services/api';
 import { Event } from '../types/event';
 import EventCardActions from '../components/common/EventCardActions';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const Events: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
@@ -85,7 +88,6 @@ const Events: React.FC = () => {
 
   const handleFilterChange = () => {
     setPage(1);
-    updateURL();
   };
 
   const updateURL = () => {
@@ -93,12 +95,16 @@ const Events: React.FC = () => {
     if (searchQuery) params.set('search', searchQuery);
     if (selectedCategory) params.set('category', selectedCategory);
     if (location) params.set('location', location);
-    if (sortBy !== 'dateTime.start') params.set('sortBy', sortBy);
+    if (sortBy !== 'date') params.set('sortBy', sortBy);
     if (sortOrder !== 'asc') params.set('sortOrder', sortOrder);
     if (page > 1) params.set('page', page.toString());
     
     setSearchParams(params);
   };
+
+  useEffect(() => {
+    updateURL();
+  }, [page, searchQuery, selectedCategory, location, sortBy, sortOrder]);
 
   const handleEventClick = (eventId: string) => {
     navigate(`/events/${eventId}`);
@@ -135,7 +141,7 @@ const Events: React.FC = () => {
   };
 
   return (
-    <Box sx={{ py: 4 }}>
+    <Box sx={{ py: { xs: 3, md: 4 } }}>
       <Container maxWidth="lg">
         {/* Breadcrumbs */}
         <Breadcrumbs separator={<NavigateNext fontSize="small" />} sx={{ mb: 3 }}>
@@ -163,7 +169,7 @@ const Events: React.FC = () => {
         </Box>
 
         {/* Search and Filters */}
-        <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+        <Paper elevation={2} sx={{ p: { xs: 2, md: 3 }, mb: 4, borderRadius: { xs: 3, md: 4 } }}>
           <Box component="form" onSubmit={handleSearch}>
             <Grid container spacing={2} alignItems="center">
               <Grid xs={12} md={4}>
@@ -233,8 +239,8 @@ const Events: React.FC = () => {
           </Box>
 
           {/* Additional Filters */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, flexDirection: { xs: 'column', md: 'row' }, gap: 2, mt: 3 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <InputLabel>Sort By</InputLabel>
                 <Select
@@ -268,7 +274,7 @@ const Events: React.FC = () => {
               </ToggleButtonGroup>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: { xs: 'flex-end', md: 'flex-start' } }}>
               <ToggleButtonGroup
                 value={viewMode}
                 exclusive
@@ -325,22 +331,25 @@ const Events: React.FC = () => {
                     sx={{
                       height: '100%',
                       display: 'flex',
-                      flexDirection: viewMode === 'list' ? 'row' : 'column',
+                      flexDirection: viewMode === 'list' && !isMobile ? 'row' : 'column',
                       cursor: 'pointer',
                       transition: 'transform 0.2s',
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      border: `1px solid ${alpha('#0f172a', 0.06)}`,
                       '&:hover': { transform: 'translateY(-4px)' },
                     }}
                     onClick={() => handleEventClick(event._id)}
                   >
                     <CardMedia
                       component="img"
-                      height={viewMode === 'list' ? 200 : 200}
-                      width={viewMode === 'list' ? 300 : '100%'}
+                      height={200}
                       image={getEventImage(event)}
                       alt={event.title}
                       sx={{
                         objectFit: 'cover',
                         flexShrink: 0,
+                        width: viewMode === 'list' && !isMobile ? 300 : '100%',
                       }}
                     />
                   <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -402,7 +411,7 @@ const Events: React.FC = () => {
                         )}
                       </Box>
                     </CardContent>
-                    <CardActions sx={{ p: 2, pt: 0, justifyContent: 'space-between', alignItems: 'center' }}>
+                    <CardActions sx={{ p: 2, pt: 0, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1.25 }}>
                       <EventCardActions
                         eventId={event._id}
                         title={event.title}

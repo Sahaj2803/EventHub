@@ -2,6 +2,8 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const Event = require('../models/Event');
 const Category = require('../models/Category');
+const Booking = require('../models/Booking');
+const Favorite = require('../models/Favorite');
 const { auth, authorize, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -29,7 +31,7 @@ router.get('/', [
       limit = 12,
       category,
       search,
-      status = 'published',
+      status,
       sortBy = 'dateTime.start',
       sortOrder = 'asc',
       featured,
@@ -288,7 +290,11 @@ router.delete('/:id', auth, authorize('organizer', 'admin'), async (req, res) =>
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    await Event.findByIdAndDelete(req.params.id);
+    await Promise.all([
+      Favorite.deleteMany({ event: req.params.id }),
+      Booking.deleteMany({ event: req.params.id }),
+      Event.findByIdAndDelete(req.params.id)
+    ]);
 
     res.json({ message: 'Event deleted successfully' });
   } catch (error) {

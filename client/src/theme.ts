@@ -34,13 +34,18 @@ export const getTheme = (mode: ThemeMode) =>
     components: {
       MuiCssBaseline: {
         styleOverrides: {
-          body: mode === 'dark'
-            ? {
-                background:
-                  'radial-gradient(1200px 600px at -10% -20%, rgba(124, 58, 237, 0.25), transparent 60%),\\\n             radial-gradient(1200px 600px at 110% 120%, rgba(236, 72, 153, 0.25), transparent 60%),\\\n             linear-gradient(180deg, #0b1020 0%, #0b1020 100%)',
-                color: '#E6E9F5',
-              }
-            : {},
+          body:
+            mode === 'dark'
+              ? {
+                  background:
+                    'radial-gradient(1200px 600px at -10% -20%, rgba(124, 58, 237, 0.25), transparent 60%),\\\n             radial-gradient(1200px 600px at 110% 120%, rgba(236, 72, 153, 0.25), transparent 60%),\\\n             linear-gradient(180deg, #0b1020 0%, #0b1020 100%)',
+                  color: '#E6E9F5',
+                }
+              : {
+                  background:
+                    'radial-gradient(900px 520px at -10% -10%, rgba(56, 189, 248, 0.18), transparent 55%),\\\n             radial-gradient(1000px 520px at 110% 0%, rgba(99, 102, 241, 0.12), transparent 50%),\\\n             linear-gradient(180deg, #f7f8fc 0%, #eef2ff 100%)',
+                  color: '#0d1324',
+                },
         },
       },
       MuiButton: {
@@ -56,9 +61,16 @@ export const getTheme = (mode: ThemeMode) =>
         styleOverrides: {
           root: {
             background:
-              'linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))',
+              mode === 'dark'
+                ? 'linear-gradient(160deg, rgba(22, 28, 52, 0.92), rgba(12, 17, 36, 0.88))'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,255,0.96))',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            border:
+              mode === 'dark'
+                ? '1px solid rgba(148, 163, 184, 0.14)'
+                : '1px solid rgba(148, 163, 184, 0.18)',
+            color: mode === 'dark' ? '#E6E9F5' : '#0d1324',
+            backgroundImage: 'none',
           },
         },
       },
@@ -66,18 +78,35 @@ export const getTheme = (mode: ThemeMode) =>
         styleOverrides: {
           root: {
             background:
-              'linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+              mode === 'dark'
+                ? 'linear-gradient(160deg, rgba(24, 31, 57, 0.94), rgba(13, 19, 39, 0.9))'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,255,0.96))',
+            boxShadow:
+              mode === 'dark'
+                ? '0 12px 30px rgba(0,0,0,0.35)'
+                : '0 16px 36px rgba(15, 23, 42, 0.08)',
+            color: mode === 'dark' ? '#E6E9F5' : '#0d1324',
+            backgroundImage: 'none',
           },
         },
       },
       MuiAppBar: {
         styleOverrides: {
           root: {
-            background: 'rgba(15, 20, 40, 0.6)',
+            background:
+              mode === 'dark'
+                ? 'rgba(15, 20, 40, 0.72)'
+                : 'rgba(255, 255, 255, 0.78)',
             backdropFilter: 'blur(10px)',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.35)',
-            borderBottom: '1px solid rgba(255,255,255,0.08)'
+            boxShadow:
+              mode === 'dark'
+                ? '0 8px 20px rgba(0,0,0,0.35)'
+                : '0 8px 24px rgba(15, 23, 42, 0.08)',
+            borderBottom:
+              mode === 'dark'
+                ? '1px solid rgba(255,255,255,0.08)'
+                : '1px solid rgba(148, 163, 184, 0.18)',
+            color: mode === 'dark' ? '#E6E9F5' : '#0d1324',
           },
         },
       },

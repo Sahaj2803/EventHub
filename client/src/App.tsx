@@ -16,6 +16,8 @@ import CreateEvent from './pages/CreateEvent';
 import EditEvent from './pages/EditEvent';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import Dashboard from './pages/Dashboard';
 import Bookings from './pages/Bookings';
@@ -79,6 +81,8 @@ function App() {
                     <Route path="/favorites" element={<Favorites />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
                     {/* Protected Routes */}
                     <Route path="/profile" element={
                       <ProtectedRoute>

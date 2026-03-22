@@ -31,6 +31,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  const normalizeUser = (userData: User | null): User | null => {
+    if (!userData) {
+      return null;
+    }
+
+    return {
+      ...userData,
+      _id: userData._id || userData.id || '',
+      id: userData.id || userData._id,
+    };
+  };
+
   const isAuthenticated = !!user && !!token && !loading;
 
   useEffect(() => {
@@ -40,7 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (storedToken) {
         try {
           const response = await authAPI.getCurrentUser();
-          setUser(response.data.user);
+          setUser(normalizeUser(response.data.user));
           setToken(storedToken);
         } catch (error) {
           console.error('AuthContext: Error fetching user:', error);
@@ -61,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       localStorage.setItem('token', newToken);
       setToken(newToken);
-      setUser(userData);
+      setUser(normalizeUser(userData));
     } catch (error) {
       throw error;
     }
@@ -74,7 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       localStorage.setItem('token', newToken);
       setToken(newToken);
-      setUser(userData);
+      setUser(normalizeUser(userData));
     } catch (error) {
       throw error;
     }

@@ -3,9 +3,158 @@ const { body, validationResult, query } = require('express-validator');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const Booking = require('../models/Booking');
+const Favorite = require('../models/Favorite');
+const AdminStats = require('../models/AdminStats');
 const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+const PLATFORM_REVENUE_SHARE = 0.7;
+const ORGANIZER_REVENUE_SHARE = 0.3;
+const ADMIN_STATS_KEY = 'global';
+
+const roundCurrency = (value) => Number((value || 0).toFixed(2));
+
+const buildRevenueStats = (totalRevenue = 0, totalTicketsSold = 0) => ({
+  totalRevenue: roundCurrency(totalRevenue),
+  platformRevenue: roundCurrency(totalRevenue * PLATFORM_REVENUE_SHARE),
+  organizerRevenue: roundCurrency(totalRevenue * ORGANIZER_REVENUE_SHARE),
+  totalTicketsSold,
+  avgTicketPrice: totalTicketsSold > 0 ? roundCurrency(totalRevenue / totalTicketsSold) : 0
+});
+
+const getDashboardResetAt = async () => {
+  const adminStats = await AdminStats.findOne({ key: ADMIN_STATS_KEY }).lean();
+  return adminStats?.dashboard?.resetAt ? new Date(adminStats.dashboard.resetAt) : null;
+};
+
+const getAdminOverviewStats = async () => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [
+    totalUsers,
+    totalOrganizers,
+    totalAdmins,
+    verifiedUsers,
+    recentUsers,
+    usersByRole,
+    resetAt
+  ] = await Promise.all([
+    User.countDocuments(),
+    User.countDocuments({ role: 'organizer' }),
+    User.countDocuments({ role: 'admin' }),
+    User.countDocuments({ isVerified: true }),
+    User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+    User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
+    getDashboardResetAt()
+  ]);
+
+  const bookingsFilter = resetAt ? { createdAt: { $gte: resetAt } } : {};
+  const totalBookings = await Booking.countDocuments(bookingsFilter);
+
+  const paidBookingMatch = {
+    ...bookingsFilter,
+    status: 'confirmed',
+    paymentStatus: 'paid'
+  };
+
+  const bookingStats = await Booking.aggregate([
+    { $match: paidBookingMatch },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: '$totalAmount' },
+        totalTicketsSold: { $sum: { $sum: '$tickets.quantity' } }
+      }
+    }
+  ]);
+
+  const bookingData = bookingStats[0] || {
+    totalRevenue: 0,
+    totalTicketsSold: 0
+  };
+
+  const revenue = buildRevenueStats(bookingData.totalRevenue, bookingData.totalTicketsSold);
+
+  return {
+    totalUsers,
+    totalOrganizers,
+    totalAdmins,
+    verifiedUsers,
+    recentUsers,
+    usersByRole,
+    totalBookings,
+    ...revenue,
+    resetAt
+  };
+};
+
+const recomputeEventMetrics = async (eventId) => {
+  const event = await Event.findById(eventId);
+  if (!event) return;
+
+  const [bookingStats, tierSales] = await Promise.all([
+    Booking.aggregate([
+      {
+        $match: {
+          event: event._id,
+          status: 'confirmed',
+          paymentStatus: 'paid'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$totalAmount' },
+          totalTicketsSold: { $sum: { $sum: '$tickets.quantity' } }
+        }
+      }
+    ]),
+    Booking.aggregate([
+      {
+        $match: {
+          event: event._id,
+          status: 'confirmed',
+          paymentStatus: 'paid'
+        }
+      },
+      { $unwind: '$tickets' },
+      {
+        $group: {
+          _id: '$tickets.tier.name',
+          sold: { $sum: '$tickets.quantity' }
+        }
+      }
+    ])
+  ]);
+
+  const totals = bookingStats[0] || {
+    totalRevenue: 0,
+    totalTicketsSold: 0
+  };
+
+  const tierSalesMap = new Map(tierSales.map((entry) => [entry._id, entry.sold]));
+
+  if (event.capacity) {
+    event.capacity.sold = totals.totalTicketsSold;
+    if (typeof event.capacity.total === 'number') {
+      event.capacity.available = Math.max(event.capacity.total - totals.totalTicketsSold, 0);
+    }
+  }
+
+  event.revenue.totalRevenue = roundCurrency(totals.totalRevenue);
+  event.revenue.platformRevenue = roundCurrency(totals.totalRevenue * PLATFORM_REVENUE_SHARE);
+  event.revenue.organizerRevenue = roundCurrency(totals.totalRevenue * ORGANIZER_REVENUE_SHARE);
+  event.revenue.totalTicketsSold = totals.totalTicketsSold;
+
+  if (Array.isArray(event.pricing?.tiers)) {
+    event.pricing.tiers.forEach((tier) => {
+      tier.sold = tierSalesMap.get(tier.name) || 0;
+    });
+  }
+
+  await event.save();
+};
 
 // @route   GET /api/users
 // @desc    Get all users (Admin only)
@@ -55,6 +204,49 @@ router.get('/', auth, authorize('admin'), [
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ message: 'Server error while fetching users' });
+  }
+});
+
+// @route   POST /api/users
+// @desc    Create a new user (Admin only)
+// @access  Private
+router.post('/', auth, authorize('admin'), [
+  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').optional().isIn(['user', 'organizer', 'admin']).withMessage('Invalid role')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, email, password, role = 'user' } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists with this email' });
+    }
+
+    const user = new User({
+      name,
+      email,
+      password,
+      role
+    });
+
+    await user.save();
+
+    const createdUser = await User.findById(user._id).select('-password');
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: createdUser
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ message: 'Server error while creating user' });
   }
 });
 
@@ -247,25 +439,42 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete your own account' });
     }
 
-    // Check if user has events
-    const eventCount = await Event.countDocuments({ organizer: req.params.id });
-    if (eventCount > 0) {
-      return res.status(400).json({ 
-        message: `Cannot delete user. They have ${eventCount} events.` 
-      });
-    }
+    const userEvents = await Event.find({ organizer: req.params.id }).select('_id');
+    const userEventIds = userEvents.map((event) => event._id);
+    const userEventIdSet = new Set(userEventIds.map((id) => id.toString()));
 
-    // Check if user has bookings
-    const bookingCount = await Booking.countDocuments({ user: req.params.id });
-    if (bookingCount > 0) {
-      return res.status(400).json({ 
-        message: `Cannot delete user. They have ${bookingCount} bookings.` 
-      });
+    const userBookings = await Booking.find({ user: req.params.id }).select('event');
+    const impactedExternalEventIds = [
+      ...new Set(
+        userBookings
+          .map((booking) => booking.event?.toString())
+          .filter((eventId) => eventId && !userEventIdSet.has(eventId))
+      )
+    ];
+
+    const bookingDeleteFilter = userEventIds.length > 0
+      ? { $or: [{ user: req.params.id }, { event: { $in: userEventIds } }] }
+      : { user: req.params.id };
+
+    await Promise.all([
+      Favorite.deleteMany(userEventIds.length > 0
+        ? { $or: [{ user: req.params.id }, { event: { $in: userEventIds } }] }
+        : { user: req.params.id }),
+      Booking.deleteMany(bookingDeleteFilter),
+      userEventIds.length > 0 ? Event.deleteMany({ _id: { $in: userEventIds } }) : Promise.resolve()
+    ]);
+
+    if (impactedExternalEventIds.length > 0) {
+      await Promise.all(impactedExternalEventIds.map((eventId) => recomputeEventMetrics(eventId)));
     }
 
     await User.findByIdAndDelete(req.params.id);
 
-    res.json({ message: 'User deleted successfully' });
+    res.json({
+      message: 'User deleted successfully',
+      deletedEvents: userEventIds.length,
+      updatedEvents: impactedExternalEventIds.length
+    });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ message: 'Server error while deleting user' });
@@ -277,85 +486,47 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
 // @access  Private (Admin only)
 router.get('/stats/overview', auth, authorize('admin'), async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalOrganizers = await User.countDocuments({ role: 'organizer' });
-    const totalAdmins = await User.countDocuments({ role: 'admin' });
-    const verifiedUsers = await User.countDocuments({ isVerified: true });
-
-    // Recent users (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentUsers = await User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
-
-    // Users by role
-    const usersByRole = await User.aggregate([
-      { $group: { _id: '$role', count: { $sum: 1 } } }
-    ]);
-
-    // Revenue statistics - calculate from actual bookings if revenue fields are 0
-    const revenueStats = await Event.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$revenue.totalRevenue' },
-          platformRevenue: { $sum: '$revenue.platformRevenue' },
-          organizerRevenue: { $sum: '$revenue.organizerRevenue' },
-          totalTicketsSold: { $sum: '$revenue.totalTicketsSold' }
-        }
-      }
-    ]);
-
-    let revenue = revenueStats[0] || {
-      totalRevenue: 0,
-      platformRevenue: 0,
-      organizerRevenue: 0,
-      totalTicketsSold: 0
-    };
-
-    // If revenue is 0, calculate from actual bookings
-    if (revenue.totalRevenue === 0) {
-      const bookingStats = await Booking.aggregate([
-        {
-          $match: {
-            status: { $in: ['confirmed'] },
-            paymentStatus: { $in: ['paid'] }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: '$totalAmount' },
-            totalTicketsSold: { $sum: { $sum: '$tickets.quantity' } }
-          }
-        }
-      ]);
-
-      if (bookingStats.length > 0) {
-        const bookingData = bookingStats[0];
-        revenue = {
-          totalRevenue: bookingData.totalRevenue,
-          platformRevenue: bookingData.totalRevenue * 0.5,
-          organizerRevenue: bookingData.totalRevenue * 0.5,
-          totalTicketsSold: bookingData.totalTicketsSold
-        };
-      }
-    }
-
-    res.json({
-      totalUsers,
-      totalOrganizers,
-      totalAdmins,
-      verifiedUsers,
-      recentUsers,
-      usersByRole,
-      totalRevenue: revenue.totalRevenue,
-      platformRevenue: revenue.platformRevenue,
-      organizerRevenue: revenue.organizerRevenue,
-      totalTicketsSold: revenue.totalTicketsSold
-    });
+    const stats = await getAdminOverviewStats();
+    res.json(stats);
   } catch (error) {
     console.error('Get user stats error:', error);
     res.status(500).json({ message: 'Server error while fetching user statistics' });
+  }
+});
+
+// @route   POST /api/users/stats/reset
+// @desc    Reset admin dashboard revenue and booking counters
+// @access  Private (Admin only)
+router.post('/stats/reset', auth, authorize('admin'), async (req, res) => {
+  try {
+    const resetAt = new Date();
+
+    await AdminStats.findOneAndUpdate(
+      { key: ADMIN_STATS_KEY },
+      {
+        $set: {
+          dashboard: {
+            resetAt,
+            updatedBy: req.user._id
+          }
+        }
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    const stats = await getAdminOverviewStats();
+
+    res.json({
+      message: 'Admin dashboard stats reset successfully',
+      stats
+    });
+  } catch (error) {
+    console.error('Reset admin stats error:', error);
+    res.status(500).json({ message: 'Server error while resetting dashboard statistics' });
   }
 });
 
@@ -615,8 +786,8 @@ router.get('/:id/revenue', auth, async (req, res) => {
         if (bookingStats.length > 0) {
           const bookingData = bookingStats[0];
           stats.totalRevenue = bookingData.totalRevenue;
-          stats.organizerRevenue = bookingData.totalRevenue * 0.5;
-          stats.platformRevenue = bookingData.totalRevenue * 0.5;
+          stats.organizerRevenue = roundCurrency(bookingData.totalRevenue * ORGANIZER_REVENUE_SHARE);
+          stats.platformRevenue = roundCurrency(bookingData.totalRevenue * PLATFORM_REVENUE_SHARE);
           stats.totalTicketsSold = bookingData.totalTicketsSold;
         }
       }

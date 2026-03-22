@@ -152,6 +152,49 @@ class EmailService {
     }
   }
 
+  async sendPasswordResetEmail(user, resetLink) {
+    try {
+      if (!this.transporter) {
+        console.log('Password reset email skipped because transporter is not configured.');
+        return {
+          success: false,
+          error: 'Email service not configured'
+        };
+      }
+
+      const mailOptions = {
+        from: {
+          name: 'EventHub',
+          address: process.env.EMAIL_USER
+        },
+        to: user.email,
+        subject: 'EventHub Password Reset',
+        text: `Hello ${user.name},\n\nUse this link to reset your password: ${resetLink}\n\nThis link expires in 30 minutes.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
+            <h2 style="color: #4f46e5;">Reset Your Password</h2>
+            <p>Hello ${user.name},</p>
+            <p>Humne aapke account ke liye password reset request receive ki hai.</p>
+            <p>
+              <a href="${resetLink}" style="display: inline-block; padding: 12px 20px; border-radius: 8px; background: #4f46e5; color: #ffffff; text-decoration: none; font-weight: bold;">
+                Reset Password
+              </a>
+            </p>
+            <p>Agar button work na kare to ye link open karo:</p>
+            <p><a href="${resetLink}">${resetLink}</a></p>
+            <p>Ye link 30 minutes mein expire ho jayega.</p>
+          </div>
+        `
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   generateEmailHTML(booking, event, user) {
     const attendees = Array.isArray(booking.attendeeInfo)
       ? booking.attendeeInfo

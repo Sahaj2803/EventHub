@@ -9,6 +9,8 @@ const QRCode = require('qrcode');
 const emailService = require('../services/emailService');
 
 const router = express.Router();
+const PLATFORM_REVENUE_SHARE = 0.7;
+const ORGANIZER_REVENUE_SHARE = 0.3;
 
 // @route   GET /api/bookings
 // @desc    Get user's bookings
@@ -17,7 +19,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     
-    const filter = { user: req.user._id };
+    const filter = req.user.role === 'admin' ? {} : { user: req.user._id };
     if (status) filter.status = status;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -226,9 +228,9 @@ router.post('/', auth, [
 
       await booking.save();
 
-      // Calculate revenue (50% platform, 50% organizer)
-      const platformRevenue = totalAmount * 0.5;
-      const organizerRevenue = totalAmount * 0.5;
+      // Calculate revenue split (70% platform, 30% organizer)
+      const platformRevenue = totalAmount * PLATFORM_REVENUE_SHARE;
+      const organizerRevenue = totalAmount * ORGANIZER_REVENUE_SHARE;
 
       // Update event capacity and revenue
       const updateData = {
@@ -446,9 +448,9 @@ router.put('/:id/cancel', auth, [
 
       await booking.save();
 
-      // Calculate refund amounts (50% platform, 50% organizer)
-      const platformRefund = booking.totalAmount * 0.5;
-      const organizerRefund = booking.totalAmount * 0.5;
+      // Reverse the original booking revenue split from event totals
+      const platformRefund = booking.totalAmount * PLATFORM_REVENUE_SHARE;
+      const organizerRefund = booking.totalAmount * ORGANIZER_REVENUE_SHARE;
 
       // Update event capacity and revenue
       const totalTickets = booking.tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);

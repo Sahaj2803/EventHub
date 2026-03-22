@@ -5,6 +5,58 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const addFavorite = async (req, res) => {
+  try {
+    const eventId = req.params.eventId || req.body.eventId;
+
+    if (!eventId) {
+      return res.status(400).json({ message: 'Event ID is required' });
+    }
+
+    // Check if event exists
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if already favorited
+    const existingFavorite = await Favorite.findOne({
+      user: req.user._id,
+      event: eventId
+    });
+
+    if (existingFavorite) {
+      return res.status(400).json({ message: 'Event already in favorites' });
+    }
+
+    const favorite = new Favorite({
+      user: req.user._id,
+      event: eventId
+    });
+
+    await favorite.save();
+    await favorite.populate({
+      path: 'event',
+      populate: {
+        path: 'category',
+        select: 'name slug color'
+      }
+    });
+
+    res.status(201).json({
+      message: 'Event added to favorites',
+      favorite: {
+        _id: favorite._id,
+        event: favorite.event,
+        createdAt: favorite.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Add favorite error:', error);
+    res.status(500).json({ message: 'Server error while adding favorite' });
+  }
+};
+
 // @route   GET /api/favorites
 // @desc    Get user's favorite events
 // @access  Private
@@ -45,57 +97,15 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   POST /api/favorites
+// @desc    Add event to favorites
+// @access  Private
+router.post('/', auth, addFavorite);
+
 // @route   POST /api/favorites/:eventId
 // @desc    Add event to favorites
 // @access  Private
-router.post('/:eventId', auth, async (req, res) => {
-  try {
-    const { eventId } = req.params;
-
-    // Check if event exists
-    const event = await Event.findById(eventId);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Check if already favorited
-    const existingFavorite = await Favorite.findOne({
-      user: req.user._id,
-      event: eventId
-    });
-
-    if (existingFavorite) {
-      return res.status(400).json({ message: 'Event already in favorites' });
-    }
-
-    // Create favorite
-    const favorite = new Favorite({
-      user: req.user._id,
-      event: eventId
-    });
-
-    await favorite.save();
-    await favorite.populate({
-      path: 'event',
-      populate: {
-        path: 'category',
-        select: 'name slug color'
-      }
-    });
-
-    res.status(201).json({
-      message: 'Event added to favorites',
-      favorite: {
-        _id: favorite._id,
-        event: favorite.event,
-        createdAt: favorite.createdAt
-      }
-    });
-  } catch (error) {
-    console.error('Add favorite error:', error);
-    res.status(500).json({ message: 'Server error while adding favorite' });
-  }
-});
+router.post('/:eventId', auth, addFavorite);
 
 // @route   DELETE /api/favorites/:eventId
 // @desc    Remove event from favorites

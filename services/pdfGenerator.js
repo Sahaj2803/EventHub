@@ -3,6 +3,28 @@ const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
 
+const formatEventDate = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-IN') : 'Date to be announced';
+};
+
+const formatEventTime = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime())
+    ? date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : 'Time to be announced';
+};
+
+const buildVenueAddress = (event) => {
+  const address = event?.venue?.address || {};
+  return [
+    address.street,
+    address.city,
+    address.state,
+    address.country
+  ].filter(Boolean).join(', ') || 'Venue details will be shared soon';
+};
+
 class PDFGenerator {
   constructor() {
     this.outputDir = path.join(__dirname, '../uploads/tickets');
@@ -18,6 +40,12 @@ class PDFGenerator {
   generateTicketPDF(booking, event, user) {
     return new Promise((resolve, reject) => {
       try {
+        const eventTitle = event?.title || 'Event Details Pending';
+        const venueName = event?.venue?.name || 'Venue To Be Announced';
+        const venueAddress = buildVenueAddress(event);
+        const eventDate = formatEventDate(event?.dateTime?.start);
+        const eventTime = formatEventTime(event?.dateTime?.start);
+        const categoryName = event?.category?.name || 'General';
         const fileName = `ticket-${booking.bookingReference}-${Date.now()}.pdf`;
         const filePath = path.join(this.outputDir, fileName);
         
@@ -40,7 +68,7 @@ class PDFGenerator {
         doc.fontSize(20)
            .font('Helvetica-Bold')
            .fillColor('#000000')
-           .text(event.title, 50, 100, { align: 'center' });
+           .text(eventTitle, 50, 100, { align: 'center' });
 
         // Booking Reference
         doc.fontSize(12)
@@ -56,11 +84,11 @@ class PDFGenerator {
 
         // Event Information
         const eventDetails = [
-          `Date: ${new Date(event.dateTime.start).toLocaleDateString('en-IN')}`,
-          `Time: ${new Date(event.dateTime.start).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`,
-          `Venue: ${event.venue.name}`,
-          `Address: ${event.venue.address.street || ''} ${event.venue.address.city}, ${event.venue.address.state || ''} ${event.venue.address.country}`,
-          `Category: ${event.category?.name || 'General'}`
+          `Date: ${eventDate}`,
+          `Time: ${eventTime}`,
+          `Venue: ${venueName}`,
+          `Address: ${venueAddress}`,
+          `Category: ${categoryName}`
         ];
 
         let yPosition = 210;
@@ -146,8 +174,8 @@ class PDFGenerator {
         // QR Code (booking verification payload)
         const qrPayload = {
           bookingReference: booking.bookingReference,
-          eventId: String(event._id || ''),
-          userId: String(booking.user || ''),
+          eventId: String(event?._id || booking.event || ''),
+          userId: String(booking.user?._id || booking.user || ''),
           totalAmount: booking.totalAmount,
           status: booking.status
         };

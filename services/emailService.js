@@ -3,6 +3,28 @@ const pdfGenerator = require('./pdfGenerator');
 const path = require('path');
 require('dotenv').config();
 
+const formatEventDate = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-IN') : 'Date to be announced';
+};
+
+const formatEventTime = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime())
+    ? date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : 'Time to be announced';
+};
+
+const buildVenueAddress = (event) => {
+  const address = event?.venue?.address || {};
+  return [
+    address.street,
+    address.city,
+    address.state,
+    address.country
+  ].filter(Boolean).join(', ') || 'Venue details will be shared soon';
+};
+
 class EmailService {
   constructor() {
     this.transporter = null;
@@ -100,7 +122,7 @@ class EmailService {
       const pdfResult = await pdfGenerator.generateTicketPDF(booking, event, user);
       
       // Email content
-      const emailSubject = `Your Event Ticket - ${event.title}`;
+      const emailSubject = `Your Event Ticket - ${event?.title || 'EventHub Booking'}`;
       const emailHtml = this.generateEmailHTML(booking, event, user);
       const emailText = this.generateEmailText(booking, event, user);
 
@@ -199,11 +221,11 @@ class EmailService {
     const attendees = Array.isArray(booking.attendeeInfo)
       ? booking.attendeeInfo
       : (booking.attendeeInfo ? [booking.attendeeInfo] : []);
-    const eventDate = new Date(event.dateTime.start).toLocaleDateString('en-IN');
-    const eventTime = new Date(event.dateTime.start).toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    const eventTitle = event?.title || 'Event Details Pending';
+    const eventDate = formatEventDate(event?.dateTime?.start);
+    const eventTime = formatEventTime(event?.dateTime?.start);
+    const venueName = event?.venue?.name || 'Venue To Be Announced';
+    const venueAddress = buildVenueAddress(event);
 
     return `
       <!DOCTYPE html>
@@ -232,15 +254,15 @@ class EmailService {
           
           <div class="content">
             <h2>Hello ${user.name}!</h2>
-            <p>Your booking for <span class="highlight">${event.title}</span> has been confirmed. Please find your ticket attached as a PDF.</p>
+            <p>Your booking for <span class="highlight">${eventTitle}</span> has been confirmed. Please find your ticket attached as a PDF.</p>
             
             <div class="ticket-info">
               <h3>📅 Event Details</h3>
-              <p><strong>Event:</strong> ${event.title}</p>
+              <p><strong>Event:</strong> ${eventTitle}</p>
               <p><strong>Date:</strong> ${eventDate}</p>
               <p><strong>Time:</strong> ${eventTime}</p>
-              <p><strong>Venue:</strong> ${event.venue.name}</p>
-              <p><strong>Address:</strong> ${event.venue.address.street || ''} ${event.venue.address.city}, ${event.venue.address.state || ''} ${event.venue.address.country}</p>
+              <p><strong>Venue:</strong> ${venueName}</p>
+              <p><strong>Address:</strong> ${venueAddress}</p>
             </div>
 
             <div class="ticket-info">
@@ -285,23 +307,23 @@ class EmailService {
     const attendees = Array.isArray(booking.attendeeInfo)
       ? booking.attendeeInfo
       : (booking.attendeeInfo ? [booking.attendeeInfo] : []);
-    const eventDate = new Date(event.dateTime.start).toLocaleDateString('en-IN');
-    const eventTime = new Date(event.dateTime.start).toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    const eventTitle = event?.title || 'Event Details Pending';
+    const eventDate = formatEventDate(event?.dateTime?.start);
+    const eventTime = formatEventTime(event?.dateTime?.start);
+    const venueName = event?.venue?.name || 'Venue To Be Announced';
+    const venueAddress = buildVenueAddress(event);
 
     return `
 Hello ${user.name}!
 
-Your booking for ${event.title} has been confirmed. Please find your ticket attached as a PDF.
+Your booking for ${eventTitle} has been confirmed. Please find your ticket attached as a PDF.
 
 EVENT DETAILS:
-- Event: ${event.title}
+- Event: ${eventTitle}
 - Date: ${eventDate}
 - Time: ${eventTime}
-- Venue: ${event.venue.name}
-- Address: ${event.venue.address.street || ''} ${event.venue.address.city}, ${event.venue.address.state || ''} ${event.venue.address.country}
+- Venue: ${venueName}
+- Address: ${venueAddress}
 
 BOOKING INFORMATION:
 - Booking Reference: ${booking.bookingReference}

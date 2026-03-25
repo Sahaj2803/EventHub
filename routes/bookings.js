@@ -12,6 +12,44 @@ const router = express.Router();
 const PLATFORM_REVENUE_SHARE = 0.7;
 const ORGANIZER_REVENUE_SHARE = 0.3;
 
+const sendBookingTicketEmail = (booking) => {
+  const attendeeEmail = Array.isArray(booking.attendeeInfo)
+    ? (booking.attendeeInfo[0]?.email || booking.user?.email)
+    : (booking.attendeeInfo?.email || booking.user?.email);
+  const attendeeName = Array.isArray(booking.attendeeInfo)
+    ? (booking.attendeeInfo[0]?.name || booking.user?.name)
+    : (booking.attendeeInfo?.name || booking.user?.name);
+
+  if (!attendeeEmail) {
+    console.error(`Skipping ticket email for booking ${booking.bookingReference}: attendee email not found`);
+    return;
+  }
+
+  console.log('Email Debug Info:', {
+    bookingReference: booking.bookingReference,
+    attendeeInfo: booking.attendeeInfo,
+    userEmail: booking.user?.email,
+    selectedEmail: attendeeEmail
+  });
+
+  const emailUser = {
+    name: attendeeName || booking.user?.name || 'Attendee',
+    email: attendeeEmail
+  };
+
+  emailService.sendTicketEmail(booking, booking.event, emailUser)
+    .then(result => {
+      if (result.success) {
+        console.log(`Ticket email sent successfully to ${attendeeEmail}:`, result.messageId);
+      } else {
+        console.error(`Failed to send ticket email to ${attendeeEmail}:`, result.error);
+      }
+    })
+    .catch(error => {
+      console.error(`Error sending ticket email to ${attendeeEmail}:`, error);
+    });
+};
+
 // @route   GET /api/bookings
 // @desc    Get user's bookings
 // @access  Private
@@ -363,6 +401,8 @@ router.put('/:id/confirm', auth, [
 
     await booking.populate('event', 'title dateTime venue images');
     await booking.populate('user', 'name email');
+
+    sendBookingTicketEmail(booking);
 
     res.json({
       message: 'Booking confirmed successfully',

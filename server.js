@@ -2,10 +2,60 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+
 require('dotenv').config();
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Loaded ✅" : "Missing ❌");
+
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+const defaultLocalMongoUri = 'mongodb://localhost:27017/eventmanagement';
+
+const buildMongoCandidates = () => {
+  const orderedUris = isProduction
+    ? [
+        process.env.DB_URI,
+        process.env.ATLAS_DB_URI,
+        process.env.MONGODB_URI,
+        defaultLocalMongoUri,
+      ]
+    : [
+        process.env.DB_URI,
+        process.env.MONGODB_URI,
+        process.env.ATLAS_DB_URI,
+        defaultLocalMongoUri,
+      ];
+
+  return [...new Set(orderedUris.filter(Boolean))];
+};
+
+const maskMongoUri = (uri) => {
+  if (!uri) {
+    return 'N/A';
+  }
+
+  return uri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@');
+};
+
+const connectToDatabase = async () => {
+  const mongoCandidates = buildMongoCandidates();
+  let lastError;
+
+  for (const mongoUri of mongoCandidates) {
+    try {
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log(`MongoDB connected using ${maskMongoUri(mongoUri)}`);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error(`MongoDB connection failed for ${maskMongoUri(mongoUri)}: ${error.message}`);
+    }
+  }
+
+  throw lastError;
+};
+
+console.log('Email service configured:', Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS));
 
 // Middleware
 app.use(cors());
@@ -15,17 +65,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'client/build')));
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventmanagement', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-  console.log('Connected to MongoDB');
-});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -43,6 +84,18 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 5005;
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectToDatabase();
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
+    });
+  } catch (error) {
+    console.error('Unable to start server because MongoDB connection failed.');
+    console.error(error);
+    process.exit(1);
+  }
+};
+
+startServer();

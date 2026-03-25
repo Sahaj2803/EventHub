@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const slugifyCategoryName = (name = '') => name
+  .toLowerCase()
+  .replace(/[^a-z0-9 -]/g, '')
+  .replace(/\s+/g, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
 const categorySchema = new mongoose.Schema({
   name: {
     type: String,
@@ -54,16 +61,34 @@ const categorySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate slug from name
-categorySchema.pre('save', function(next) {
+// Ensure slug exists before validation runs on new documents.
+categorySchema.pre('validate', function(next) {
   if (this.isModified('name')) {
-    this.slug = this.name
-      .toLowerCase()
-      .replace(/[^a-z0-9 -]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim('-');
+    this.slug = slugifyCategoryName(this.name);
   }
+  next();
+});
+
+// Keep slug in sync when categories are renamed through update queries.
+categorySchema.pre('findOneAndUpdate', function(next) {
+  const update = this.getUpdate();
+
+  if (!update) {
+    return next();
+  }
+
+  const nextName = update.name ?? update.$set?.name;
+  if (!nextName) {
+    return next();
+  }
+
+  const slug = slugifyCategoryName(nextName);
+  if (update.$set) {
+    update.$set.slug = slug;
+  } else {
+    update.slug = slug;
+  }
+
   next();
 });
 

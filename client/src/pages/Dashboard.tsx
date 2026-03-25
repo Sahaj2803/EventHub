@@ -44,7 +44,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { eventsAPI, bookingsAPI } from '../services/api';
+import { buildApiUrl, eventsAPI, bookingsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Event } from '../types/event';
 import WalletSummary from '../components/Wallet/WalletSummary';
@@ -68,7 +68,7 @@ const Dashboard: React.FC = () => {
   const { data: eventsData, isLoading: eventsLoading, error: eventsError } = useQuery({
     queryKey: ['user-events', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/users/${userId}/events`, {
+      const response = await fetch(buildApiUrl(`/users/${userId}/events`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -142,7 +142,7 @@ const Dashboard: React.FC = () => {
     setEmailTestMessage(null);
 
     try {
-      const response = await fetch('/api/bookings/test-email', {
+      const response = await fetch(buildApiUrl('/bookings/test-email'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -3,7 +3,24 @@ import { LoginCredentials, RegisterData, AuthResponse } from '../types/auth';
 import { Event, CreateEventData, EventFilters } from '../types/event';
 import { Booking, CreateBookingData, BookingFilters } from '../types/booking';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const normalizeApiBaseUrl = (rawUrl?: string) => {
+  if (!rawUrl) {
+    return '/api';
+  }
+
+  const trimmedUrl = rawUrl.trim().replace(/\/+$/, '');
+  return trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`;
+};
+
+export const API_BASE_URL = normalizeApiBaseUrl(process.env.REACT_APP_API_URL);
+
+export const buildApiUrl = (path = '') => {
+  if (!path) {
+    return API_BASE_URL;
+  }
+
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+};
 
 class ApiService {
   private api: AxiosInstance;

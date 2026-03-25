@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert, Avatar, Box, Breadcrumbs, Button, CardMedia, Chip, CircularProgress, Container,
   Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, Link, List, ListItem,
@@ -8,8 +8,9 @@ import {
 import Grid from '@mui/material/Grid2';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
+  ChevronLeft, ChevronRight, Close,
   CalendarToday, Facebook, Instagram, Language, LinkedIn, LocationOn, NavigateNext,
-  People, Person, Phone, ShoppingCart, AccessTime, Twitter, VerifiedUser
+  OpenInFull, People, Person, Phone, ShoppingCart, AccessTime, Twitter, VerifiedUser
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,7 +30,9 @@ const EventDetail: React.FC = () => {
   const isDark = theme.palette.mode === 'dark';
 
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<{ [key: string]: number }>({});
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [attendeeInfo, setAttendeeInfo] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -102,9 +105,33 @@ const EventDetail: React.FC = () => {
     new Date(dateString).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formatTime = (dateString: string) =>
     new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  const getEventImage = () => {
-    const primary = event?.images?.find((img) => img.isPrimary);
-    return primary?.url || event?.images?.[0]?.url || '/placeholder-event.jpg';
+  const eventImages = (() => {
+    if (!event?.images?.length) return [];
+    const validImages = event.images.filter((img) => img?.url);
+    const primaryImages = validImages.filter((img) => img.isPrimary);
+    const secondaryImages = validImages.filter((img) => !img.isPrimary);
+    return [...primaryImages, ...secondaryImages];
+  })();
+  const activeImage = eventImages[activeImageIndex];
+  const getEventImage = () => eventImages[activeImageIndex]?.url || '/placeholder-event.jpg';
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setGalleryOpen(false);
+  }, [event?._id]);
+
+  const handleSelectImage = (index: number) => {
+    setActiveImageIndex(index);
+  };
+
+  const handlePreviousImage = () => {
+    if (!eventImages.length) return;
+    setActiveImageIndex((prev) => (prev - 1 + eventImages.length) % eventImages.length);
+  };
+
+  const handleNextImage = () => {
+    if (!eventImages.length) return;
+    setActiveImageIndex((prev) => (prev + 1) % eventImages.length);
   };
 
   const getTotalPrice = () => !event ? 0 : Object.entries(selectedTickets).reduce((total, [tierName, quantity]) => {
@@ -209,8 +236,85 @@ const EventDetail: React.FC = () => {
 
         <Paper elevation={0} sx={{ ...panelSx, overflow: 'hidden', mb: 4 }}>
           <Box sx={{ position: 'relative' }}>
-            <CardMedia component="img" height="420" image={getEventImage()} alt={event.title} />
+            <CardMedia
+              component="img"
+              height="420"
+              image={getEventImage()}
+              alt={event.title}
+              onClick={() => setGalleryOpen(true)}
+              sx={{ cursor: eventImages.length ? 'zoom-in' : 'default' }}
+            />
             <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,23,42,0.08) 0%, rgba(15,23,42,0.82) 100%)' }} />
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ position: 'absolute', top: { xs: 16, md: 20 }, right: { xs: 16, md: 20 }, zIndex: 2 }}
+            >
+              {eventImages.length > 1 && (
+                <Chip
+                  label={`${activeImageIndex + 1} / ${eventImages.length}`}
+                  sx={{
+                    bgcolor: alpha('#0f172a', 0.58),
+                    color: 'white',
+                    fontWeight: 800,
+                    backdropFilter: 'blur(10px)',
+                  }}
+                />
+              )}
+              <IconButton
+                onClick={() => setGalleryOpen(true)}
+                sx={{
+                  bgcolor: alpha('#0f172a', 0.5),
+                  color: 'white',
+                  backdropFilter: 'blur(10px)',
+                  '&:hover': { bgcolor: alpha('#0f172a', 0.72) },
+                }}
+              >
+                <OpenInFull />
+              </IconButton>
+            </Stack>
+            {eventImages.length > 1 && (
+              <>
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePreviousImage();
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    left: { xs: 16, md: 20 },
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 2,
+                    bgcolor: alpha('#0f172a', 0.5),
+                    color: 'white',
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': { bgcolor: alpha('#0f172a', 0.72) },
+                  }}
+                >
+                  <ChevronLeft />
+                </IconButton>
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNextImage();
+                  }}
+                  sx={{
+                    position: 'absolute',
+                    right: { xs: 16, md: 20 },
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 2,
+                    bgcolor: alpha('#0f172a', 0.5),
+                    color: 'white',
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': { bgcolor: alpha('#0f172a', 0.72) },
+                  }}
+                >
+                  <ChevronRight />
+                </IconButton>
+              </>
+            )}
             <Box sx={{ position: 'absolute', left: { xs: 20, md: 28 }, right: { xs: 20, md: 28 }, bottom: { xs: 20, md: 28 } }}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'flex-end' }}>
                 <Box>
@@ -231,6 +335,64 @@ const EventDetail: React.FC = () => {
               </Stack>
             </Box>
           </Box>
+          {eventImages.length > 1 && (
+            <Box
+              sx={{
+                px: { xs: 2, md: 3 },
+                py: 2,
+                display: 'flex',
+                gap: 1.5,
+                overflowX: 'auto',
+                scrollbarWidth: 'thin',
+                backgroundColor: isDark ? alpha('#020617', 0.3) : alpha('#ffffff', 0.58),
+              }}
+            >
+              {eventImages.map((image, index) => (
+                <Box
+                  key={`${image.url}-${index}`}
+                  onClick={() => handleSelectImage(index)}
+                  sx={{
+                    position: 'relative',
+                    borderRadius: 2.5,
+                    overflow: 'hidden',
+                    height: { xs: 88, sm: 92, md: 96 },
+                    minWidth: { xs: 120, sm: 138, md: 150 },
+                    cursor: 'pointer',
+                    border: index === activeImageIndex
+                      ? `2px solid ${theme.palette.primary.main}`
+                      : `1px solid ${isDark ? alpha('#e2e8f0', 0.16) : alpha('#0f172a', 0.12)}`,
+                    boxShadow: index === activeImageIndex
+                      ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.16)}`
+                      : 'none',
+                    transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={image.url}
+                    alt={image.alt || `${event.title} image ${index + 1}`}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: index === activeImageIndex
+                        ? 'linear-gradient(180deg, rgba(15,23,42,0.02), rgba(15,23,42,0.3))'
+                        : 'linear-gradient(180deg, rgba(15,23,42,0.06), rgba(15,23,42,0.42))',
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
         </Paper>
 
         <Grid container spacing={3.5}>
@@ -506,6 +668,141 @@ const EventDetail: React.FC = () => {
             {createBookingMutation.isPending ? <CircularProgress size={18} color="inherit" /> : 'Complete Booking'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: alpha('#020617', 0.96),
+            color: 'white',
+            borderRadius: { xs: 0, md: 4 },
+            overflow: 'hidden',
+            maxHeight: { xs: '100%', md: '92vh' },
+          },
+        }}
+      >
+        <Box sx={{ position: 'relative', p: { xs: 1.5, md: 2 } }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {event.title}
+              </Typography>
+              <Typography variant="body2" sx={{ color: alpha('#ffffff', 0.72) }}>
+                {eventImages.length ? `${activeImageIndex + 1} of ${eventImages.length} photos` : 'Event photo'}
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setGalleryOpen(false)} sx={{ color: 'white' }}>
+              <Close />
+            </IconButton>
+          </Stack>
+
+          <Box
+            sx={{
+              position: 'relative',
+              borderRadius: 3,
+              overflow: 'hidden',
+              bgcolor: alpha('#ffffff', 0.04),
+              minHeight: { xs: 300, md: 560 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Box
+              component="img"
+              src={activeImage?.url || '/placeholder-event.jpg'}
+              alt={activeImage?.alt || event.title}
+              sx={{
+                width: '100%',
+                height: { xs: 300, md: 560 },
+                objectFit: 'contain',
+                bgcolor: alpha('#020617', 0.45),
+              }}
+            />
+            {eventImages.length > 1 && (
+              <>
+                <IconButton
+                  onClick={handlePreviousImage}
+                  sx={{
+                    position: 'absolute',
+                    left: { xs: 12, md: 18 },
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    bgcolor: alpha('#020617', 0.48),
+                    color: 'white',
+                    '&:hover': { bgcolor: alpha('#020617', 0.72) },
+                  }}
+                >
+                  <ChevronLeft />
+                </IconButton>
+                <IconButton
+                  onClick={handleNextImage}
+                  sx={{
+                    position: 'absolute',
+                    right: { xs: 12, md: 18 },
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    bgcolor: alpha('#020617', 0.48),
+                    color: 'white',
+                    '&:hover': { bgcolor: alpha('#020617', 0.72) },
+                  }}
+                >
+                  <ChevronRight />
+                </IconButton>
+              </>
+            )}
+          </Box>
+
+          {eventImages.length > 1 && (
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                gap: 1.25,
+                overflowX: 'auto',
+                pb: 0.5,
+              }}
+            >
+              {eventImages.map((image, index) => (
+                <Box
+                  key={`dialog-${image.url}-${index}`}
+                  onClick={() => handleSelectImage(index)}
+                  sx={{
+                    borderRadius: 2.5,
+                    overflow: 'hidden',
+                    minWidth: { xs: 92, md: 118 },
+                    height: { xs: 72, md: 88 },
+                    cursor: 'pointer',
+                    border: index === activeImageIndex
+                      ? `2px solid ${theme.palette.primary.main}`
+                      : `1px solid ${alpha('#ffffff', 0.12)}`,
+                    opacity: index === activeImageIndex ? 1 : 0.72,
+                    transition: 'opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
+                    '&:hover': {
+                      opacity: 1,
+                      transform: 'translateY(-2px)',
+                    },
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={image.url}
+                    alt={image.alt || `${event.title} image ${index + 1}`}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
       </Dialog>
 
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}>

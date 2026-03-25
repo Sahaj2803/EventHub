@@ -61,6 +61,11 @@ interface TabPanelProps {
   value: number;
 }
 
+const getApiErrorMessage = (error: any, fallbackMessage: string) =>
+  error?.response?.data?.message ||
+  error?.response?.data?.errors?.[0]?.msg ||
+  fallbackMessage;
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -157,7 +162,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to delete event.'
+        message: getApiErrorMessage(error, 'Failed to delete event.')
       });
     },
   });
@@ -175,7 +180,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to delete user.'
+        message: getApiErrorMessage(error, 'Failed to delete user.')
       });
     },
   });
@@ -192,7 +197,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to delete category.'
+        message: getApiErrorMessage(error, 'Failed to delete category.')
       });
     },
   });
@@ -211,7 +216,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to update user role.'
+        message: getApiErrorMessage(error, 'Failed to update user role.')
       });
     },
   });
@@ -232,7 +237,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to create user.'
+        message: getApiErrorMessage(error, 'Failed to create user.')
       });
     },
   });
@@ -247,7 +252,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to reset admin stats.'
+        message: getApiErrorMessage(error, 'Failed to reset admin stats.')
       });
     },
   });
@@ -268,7 +273,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to create category.'
+        message: getApiErrorMessage(error, 'Failed to create category.')
       });
     },
   });
@@ -295,7 +300,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error: any) => {
       setFeedback({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to update category.'
+        message: getApiErrorMessage(error, 'Failed to update category.')
       });
     },
   });

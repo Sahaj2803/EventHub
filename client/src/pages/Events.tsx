@@ -17,7 +17,6 @@ import {
   Select,
   MenuItem,
   Pagination,
-  CircularProgress,
   Alert,
   Skeleton,
   Paper,
@@ -83,14 +82,13 @@ const Events: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
-    updateURL();
   };
 
   const handleFilterChange = () => {
     setPage(1);
   };
 
-  const updateURL = () => {
+  useEffect(() => {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (selectedCategory) params.set('category', selectedCategory);
@@ -98,13 +96,9 @@ const Events: React.FC = () => {
     if (sortBy !== 'date') params.set('sortBy', sortBy);
     if (sortOrder !== 'asc') params.set('sortOrder', sortOrder);
     if (page > 1) params.set('page', page.toString());
-    
-    setSearchParams(params);
-  };
 
-  useEffect(() => {
-    updateURL();
-  }, [page, searchQuery, selectedCategory, location, sortBy, sortOrder]);
+    setSearchParams(params);
+  }, [page, searchQuery, selectedCategory, location, sortBy, sortOrder, setSearchParams]);
 
   const handleEventClick = (eventId: string) => {
     navigate(`/events/${eventId}`);
@@ -443,7 +437,6 @@ const Events: React.FC = () => {
                   page={page}
                   onChange={(_, newPage) => {
                     setPage(newPage);
-                    updateURL();
                   }}
                   color="primary"
                   size="large"
@@ -467,7 +460,6 @@ const Events: React.FC = () => {
                     setSelectedCategory('');
                     setLocation('');
                     setPage(1);
-                    updateURL();
                   }}
                 >
                   Clear Filters

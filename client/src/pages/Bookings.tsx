@@ -85,7 +85,6 @@ const Bookings: React.FC = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [qrValue, setQrValue] = useState('');
   const [qrImage, setQrImage] = useState<string>('');
 
   // Fetch user's bookings
@@ -183,8 +182,6 @@ const Bookings: React.FC = () => {
   const handleViewQRCode = async () => {
     if (!selectedBooking) return;
     const booking = selectedBooking;
-    // Friendly text shown above QR
-    setQrValue(`#${booking.bookingReference}`);
     try {
       const resp = await bookingsAPI.getQRCode(booking._id);
       setQrImage(resp.data.qrCode);

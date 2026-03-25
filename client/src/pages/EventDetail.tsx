@@ -10,7 +10,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import {
   ChevronLeft, ChevronRight, Close,
   CalendarToday, Facebook, Instagram, Language, LinkedIn, LocationOn, NavigateNext,
-  OpenInFull, People, Person, Phone, ShoppingCart, AccessTime, Twitter, VerifiedUser
+  OpenInFull, People, Person, ShoppingCart, AccessTime, Twitter, VerifiedUser
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

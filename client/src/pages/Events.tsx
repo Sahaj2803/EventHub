@@ -337,13 +337,15 @@ const Events: React.FC = () => {
                   >
                     <CardMedia
                       component="img"
-                      height={200}
+                      height={viewMode === 'list' && !isMobile ? 260 : 220}
                       image={getEventImage(event)}
                       alt={event.title}
                       sx={{
                         objectFit: 'cover',
+                        objectPosition: 'center',
                         flexShrink: 0,
                         width: viewMode === 'list' && !isMobile ? 300 : '100%',
+                        bgcolor: alpha('#0f172a', 0.08),
                       }}
                     />
                   <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>

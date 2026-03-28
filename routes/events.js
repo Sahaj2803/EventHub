@@ -8,6 +8,20 @@ const { auth, authorize, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const normalizeEventImages = (images = []) => {
+  const validImages = Array.isArray(images)
+    ? images.filter((image) => image && typeof image.url === 'string' && image.url.trim())
+    : [];
+
+  const primaryIndex = validImages.findIndex((image) => Boolean(image.isPrimary));
+
+  return validImages.map((image, index) => ({
+    ...image,
+    url: image.url.trim(),
+    isPrimary: primaryIndex >= 0 ? index === primaryIndex : index === 0,
+  }));
+};
+
 // @route   GET /api/events
 // @desc    Get all events with filtering and pagination
 // @access  Public
@@ -183,6 +197,7 @@ router.post('/', auth, authorize('organizer', 'admin'), [
 
     const eventData = {
       ...req.body,
+      images: normalizeEventImages(req.body.images),
       organizer: req.user._id
     };
 
@@ -257,9 +272,14 @@ router.put('/:id', auth, authorize('organizer', 'admin'), [
       }
     }
 
+    const updateData = {
+      ...req.body,
+      ...(req.body.images ? { images: normalizeEventImages(req.body.images) } : {}),
+    };
+
     const updatedEvent = await Event.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     )
       .populate('organizer', 'name avatar')

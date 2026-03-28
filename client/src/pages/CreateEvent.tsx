@@ -79,6 +79,17 @@ const schema = yup.object({
 
 type EventFormData = yup.InferType<typeof schema>;
 
+const normalizeEventImages = (images: any[] = [], title = '') => {
+  const validImages = images.filter((img) => img?.url?.trim());
+  const primaryIndex = validImages.findIndex((img) => Boolean(img?.isPrimary));
+
+  return validImages.map((img, idx) => ({
+    url: img.url.trim(),
+    alt: img.alt || title,
+    isPrimary: primaryIndex >= 0 ? idx === primaryIndex : idx === 0,
+  }));
+};
+
 const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -160,11 +171,7 @@ const CreateEvent: React.FC = () => {
         tiers: (data.pricing?.tiers ?? []).filter(tier => tier.name && tier.price >= 0),
       },
       tags: (data.tags ?? []).filter((t): t is string => typeof t === 'string'),
-      images: (data.images ?? []).map((img: any, idx: number) => ({
-        url: img.url,
-        alt: img.alt || data.title,
-        isPrimary: Boolean(img.isPrimary) || idx === 0,
-      })),
+      images: normalizeEventImages(data.images ?? [], data.title),
       visibility: data.visibility as CreateEventData['visibility'],
       status: isDraft ? "draft" : "published",
     };

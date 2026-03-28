@@ -80,6 +80,17 @@ const schema = yup.object({
 
 type EventFormData = yup.InferType<typeof schema>;
 
+const normalizeEventImages = (images: any[] = [], title = '') => {
+  const validImages = images.filter((img) => img?.url?.trim());
+  const primaryIndex = validImages.findIndex((img) => Boolean(img?.isPrimary));
+
+  return validImages.map((img, idx) => ({
+    url: img.url.trim(),
+    alt: img.alt || title,
+    isPrimary: primaryIndex >= 0 ? idx === primaryIndex : idx === 0,
+  }));
+};
+
 const EditEvent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -197,11 +208,7 @@ const EditEvent: React.FC = () => {
       shortDescription: data.shortDescription,
       category: data.category,
       tags: (data.tags ?? []).filter((t): t is string => typeof t === 'string'),
-      images: (data.images ?? []).map((img: any, idx: number) => ({
-        url: img.url,
-        alt: img.alt || data.title,
-        isPrimary: Boolean(img.isPrimary) || idx === 0,
-      })),
+      images: normalizeEventImages(data.images ?? [], data.title),
       venue: {
         name: data.venue.name,
         address: {

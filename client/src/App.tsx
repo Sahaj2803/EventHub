@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -50,6 +50,20 @@ const WalletProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
   return <WalletProvider userId={userId}>{children}</WalletProvider>;
 };
 
+const DashboardRoute: React.FC = () => {
+  const { user } = useAuth();
+
+  if (user?.role === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return (
+    <ProtectedRoute allowedRoles={['organizer']}>
+      <Dashboard />
+    </ProtectedRoute>
+  );
+};
+
 // theme is now centralized in ./theme
 
 function App() {
@@ -89,11 +103,7 @@ function App() {
                         <Profile />
                       </ProtectedRoute>
                     } />
-                    <Route path="/dashboard" element={
-                      <ProtectedRoute allowedRoles={['organizer', 'admin']}>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    } />
+                    <Route path="/dashboard" element={<DashboardRoute />} />
                     <Route path="/events/create" element={
                       <ProtectedRoute allowedRoles={['organizer', 'admin']}>
                         <CreateEvent />

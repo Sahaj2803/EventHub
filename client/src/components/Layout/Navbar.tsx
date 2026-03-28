@@ -139,7 +139,7 @@ const Navbar: React.FC = () => {
     { label: 'Profile', path: '/profile', icon: <AccountCircle />, roles: ['user', 'organizer', 'admin'] },
     { label: 'My Bookings', path: '/bookings', icon: <BookOnline />, roles: ['user', 'organizer', 'admin'] },
     { label: 'My Wallet', path: '/wallet', icon: <AccountBalanceWallet />, roles: ['user', 'organizer', 'admin'] },
-    { label: 'Dashboard', path: '/dashboard', icon: <Dashboard />, roles: ['organizer', 'admin'] },
+    { label: 'Dashboard', path: '/dashboard', icon: <Dashboard />, roles: ['organizer'] },
     { label: 'Admin Panel', path: '/admin', icon: <AdminPanelSettings />, roles: ['admin'] },
   ];
 

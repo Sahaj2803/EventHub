@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
@@ -30,7 +30,7 @@ import {
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const schema = yup.object({
@@ -48,9 +48,8 @@ type LoginFormData = yup.InferType<typeof schema>;
 
 const Login: React.FC = () => {
   const theme = useTheme();
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,7 +62,6 @@ const Login: React.FC = () => {
     resolver: yupResolver(schema),
   });
 
-  const from = location.state?.from?.pathname || '/';
   const isDark = theme.palette.mode === 'dark';
   const showcaseItems = [
     { icon: <AutoAwesome fontSize="small" />, title: 'Premium discovery', text: 'Curated events, smarter search, faster booking flow.' },
@@ -110,12 +108,18 @@ const Login: React.FC = () => {
     },
   };
 
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true);
       setError('');
       await login(data);
-      navigate(from, { replace: true });
+      navigate('/', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {

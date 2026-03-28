@@ -51,11 +51,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   const [loading, setLoading] = useState(false);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fetchedUserIdRef = useRef<string | null>(null);
 
-  // 🧠 Prevent multiple fetches
-  const fetchedRef = useRef(false);
-
-  // 🔄 Refresh wallet details
   const refreshWallet = useCallback(async () => {
     if (!userId) {
       return;
@@ -76,7 +73,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
     }
   }, [userId]);
 
-  // 📜 Load transactions
   const loadTransactions = useCallback(
     async (page = 1, limit = 20, type?: string) => {
       if (!userId) {
@@ -103,7 +99,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
     [userId]
   );
 
-  // 💳 Recharge wallet
   const rechargeWallet = useCallback(
     async (amount: number, paymentMethod: string, description?: string) => {
       if (!userId) {
@@ -119,7 +114,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
           description,
         });
         setWallet(response.data.wallet);
-        // Refresh transactions after recharge without causing infinite loop
+
         const transactionsResponse = await walletAPI.getTransactions(userId, {
           page: 1,
           limit: 20,
@@ -138,36 +133,51 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
     [userId]
   );
 
-  // 🪄 Auto-load wallet + transactions on mount
   useEffect(() => {
     if (!userId) {
-      setWallet({
-        balance: 0,
-        currency: 'USD',
-        transactions: [],
-      });
+      fetchedUserIdRef.current = null;
+      setWallet(null);
+      setTransactions([]);
+      setError(null);
+      setLoading(false);
+      setTransactionsLoading(false);
       return;
     }
 
-    if (fetchedRef.current) return; // ⛔ Prevent duplicate calls
-    fetchedRef.current = true;
+    if (fetchedUserIdRef.current === userId) {
+      return;
+    }
+
+    fetchedUserIdRef.current = userId;
+    let isActive = true;
 
     const fetchData = async () => {
       try {
-        await refreshWallet();
-        await loadTransactions();
-      } catch (error) {
-        console.error('WalletContext: Failed to load wallet data:', error);
+        await Promise.all([refreshWallet(), loadTransactions()]);
+      } catch (fetchError) {
+        console.error(
+          'WalletContext: Failed to load wallet data:',
+          fetchError
+        );
+        if (!isActive) {
+          return;
+        }
+
         setWallet({
           balance: 0,
           currency: 'USD',
           transactions: [],
         });
+        setTransactions([]);
       }
     };
 
     fetchData();
-  }, [userId, refreshWallet, loadTransactions]); // Include all dependencies
+
+    return () => {
+      isActive = false;
+    };
+  }, [userId, refreshWallet, loadTransactions]);
 
   const value: WalletContextType = {
     wallet,
@@ -187,7 +197,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({
   );
 };
 
-// 🧩 Hook for components to access WalletContext
 export const useWallet = (): WalletContextType => {
   const context = useContext(WalletContext);
   if (!context) {
